@@ -1,21 +1,26 @@
 const User = require('../models/userModel');
+const bcrypt = require('bcryptjs');
 
-// @desc    Register a new user
-// @route   POST /api/users/register
 const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
-
   try {
-    const userExists = await User.findOne({ email });
+    const { name, email, password } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Please include all fields' });
+    }
+
+    const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const user = await User.create({
       name,
       email,
-      password,
+      password: hashedPassword,
     });
 
     if (user) {
@@ -23,12 +28,13 @@ const registerUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        message: 'User registered successfully',
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
